@@ -45,6 +45,19 @@ func ConnUser(app *fiber.App, uri string) {
 	loginTestAuth(app, database)
 }
 
+func createTokenCookie(c *fiber.Ctx, token string) {
+	// Create cookie
+	cookie := new(fiber.Cookie)
+	cookie.Name = "token"
+	cookie.Value = token
+	cookie.Expires = time.Now().Add(time.Duration(authTime))
+	cookie.Path = "/"
+	cookie.HTTPOnly = true
+	cookie.SameSite = "Lax"
+	// Set cookie
+	c.Cookie(cookie)
+}
+
 func userLogin(app *fiber.App, database string) {
 	app.Post(postDbRoute(userTable), func(c *fiber.Ctx) error {
 		fmt.Fprintf(os.Stderr, "Login (%v)\n", userTable)
@@ -71,22 +84,16 @@ func userLogin(app *fiber.App, database string) {
 		// Create the Claims
 		claims := auth.CreateClaims(c, user.Uuid, authTime)
 		// Create token
-		token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+		tmpToken := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
 		// Generate encoded token and send it as response
-		t, errToken := token.SignedString(privateKey)
+		token, errToken := tmpToken.SignedString(privateKey)
 		if errToken != nil {
 			conn.Close(ctx)
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
 
 		// Create cookie
-		cookie := new(fiber.Cookie)
-		cookie.Name = "token"
-		cookie.Value = t
-		cookie.Expires = time.Now().Add(time.Duration(authTime))
-		cookie.Path = "/"
-		// Set cookie
-		c.Cookie(cookie)
+		createTokenCookie(c, token)
 
 		defer conn.Close(ctx)
 		fmt.Fprintf(os.Stderr, "OK\n")
