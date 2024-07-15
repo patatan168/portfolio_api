@@ -28,6 +28,10 @@ type User struct {
 	Privatekey string `json:"private_key" xml:"private_key" form:"private_key"`
 }
 
+type HasLogin struct {
+	Valid bool `json:"hasLogin" xml:"hasLogin" form:"hasLogin"`
+}
+
 /* テーブル名 */
 const userTable string = "user_list"
 
@@ -38,6 +42,7 @@ const authTime time.Duration = time.Duration(72) * time.Hour
 func ConnUser(app *fiber.App, uri string) {
 	database := uri
 	// クエリー
+	hasLogin(app, database)
 	userLogin(app, database)
 	addUser(app, database)
 	makeTestUser(app, database)
@@ -55,6 +60,25 @@ func createTokenCookie(c *fiber.Ctx, token string) {
 	cookie.SameSite = "Lax"
 	// Set cookie
 	c.Cookie(cookie)
+}
+
+func hasLogin(app *fiber.App, database string) {
+	app.Get(getDbRoute(userTable)+"/haslogin", func(c *fiber.Ctx) error {
+		valid, _, err := auth.VerifyToken(c, database)
+		var hasLogin HasLogin
+		hasLogin.Valid = valid
+		hostName := c.Hostname()
+		fmt.Fprintf(os.Stderr, "%v\n", hostName)
+		if valid {
+			c.JSON(hasLogin)
+			fmt.Fprintf(os.Stderr, "Has Login (%v)\n", userTable)
+			return c.SendStatus(fiber.StatusOK)
+		} else {
+			c.JSON(hasLogin)
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
+	})
 }
 
 func userLogin(app *fiber.App, database string) {
