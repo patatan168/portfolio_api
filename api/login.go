@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"strings"
 
 	"encoding/json"
 
@@ -28,16 +29,21 @@ type User struct {
 	Privatekey string `json:"private_key" xml:"private_key" form:"private_key"`
 }
 
+type HasLogin struct {
+	Valid bool `json:"hasLogin" xml:"hasLogin" form:"hasLogin"`
+}
+
 /* テーブル名 */
 const userTable string = "user_list"
 
 /* Auth Time(H) */
-const authTime time.Duration = time.Hour * 72
+const authTime time.Duration = time.Duration(72) * time.Hour
 
 /* todoデータベースへ接続 */
 func ConnUser(app *fiber.App, uri string) {
 	database := uri
 	// クエリー
+	hasLogin(app, database)
 	userLogin(app, database)
 	addUser(app, database)
 	makeTestUser(app, database)
@@ -50,12 +56,41 @@ func createTokenCookie(c *fiber.Ctx, token string) {
 	cookie := new(fiber.Cookie)
 	cookie.Name = "token"
 	cookie.Value = token
-	cookie.Expires = time.Now().Add(time.Duration(authTime))
-	cookie.Path = "/"
+	cookie.Expires = time.Now().Add(authTime)
 	cookie.HTTPOnly = true
-	cookie.SameSite = "Lax"
+	cookie.Secure = true
+
+	// Set SameSite
+	// [TODO]Docker対応時に解除
+	hostName := c.Hostname()
+	isDev := strings.Contains(hostName, "127.0.0.1") || strings.Contains(hostName, "localhost")
+	// 開発環境ではNoneにしとく
+	if isDev {
+		cookie.SameSite = "None"
+	} else {
+		cookie.SameSite = "Lax"
+	}
 	// Set cookie
 	c.Cookie(cookie)
+}
+
+func hasLogin(app *fiber.App, database string) {
+	app.Get(getDbRoute(userTable)+"/haslogin", func(c *fiber.Ctx) error {
+		valid, _, err := auth.VerifyToken(c, database)
+		var hasLogin HasLogin
+		hasLogin.Valid = valid
+		hostName := c.Hostname()
+		fmt.Fprintf(os.Stderr, "%v\n", hostName)
+		if valid {
+			c.JSON(hasLogin)
+			fmt.Fprintf(os.Stderr, "Has Login (%v)\n", userTable)
+			return c.SendStatus(fiber.StatusOK)
+		} else {
+			c.JSON(hasLogin)
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
+	})
 }
 
 func userLogin(app *fiber.App, database string) {
