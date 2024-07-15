@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"strings"
 
 	"encoding/json"
 
@@ -57,7 +58,18 @@ func createTokenCookie(c *fiber.Ctx, token string) {
 	cookie.Value = token
 	cookie.Expires = time.Now().Add(authTime)
 	cookie.HTTPOnly = true
-	cookie.SameSite = "Lax"
+	cookie.Secure = true
+
+	// Set SameSite
+	// [TODO]Docker対応時に解除
+	hostName := c.Hostname()
+	isDev := strings.Contains(hostName, "127.0.0.1") || strings.Contains(hostName, "localhost")
+	// 開発環境ではNoneにしとく
+	if isDev {
+		cookie.SameSite = "None"
+	} else {
+		cookie.SameSite = "Lax"
+	}
 	// Set cookie
 	c.Cookie(cookie)
 }
