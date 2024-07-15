@@ -32,7 +32,7 @@ type User struct {
 const userTable string = "user_list"
 
 /* Auth Time(H) */
-const authTime time.Duration = time.Hour * 72
+const authTime time.Duration = time.Duration(72) * time.Hour
 
 /* todoデータベースへ接続 */
 func ConnUser(app *fiber.App, uri string) {
@@ -50,8 +50,7 @@ func createTokenCookie(c *fiber.Ctx, token string) {
 	cookie := new(fiber.Cookie)
 	cookie.Name = "token"
 	cookie.Value = token
-	cookie.Expires = time.Now().Add(time.Duration(authTime))
-	cookie.Path = "/"
+	cookie.Expires = time.Now().Add(authTime)
 	cookie.HTTPOnly = true
 	cookie.SameSite = "Lax"
 	// Set cookie
