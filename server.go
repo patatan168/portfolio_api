@@ -36,9 +36,9 @@ func main() {
 	flag.Parse()
 
 	// Corsの設定
-	frontPort := os.Getenv("FRONT_PORT")
+	frontEnvPort := os.Getenv("FRONT_ENV_PORT")
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://127.0.0.1:" + frontPort + ", http://localhost:" + frontPort,
+		AllowOrigins:     "http://" + host + ":" + frontEnvPort + ", http://localhost:" + frontEnvPort,
 		AllowCredentials: true,
 		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
 		AllowHeaders:     "Access-Control-Allow-Origin, Content-Type",

@@ -61,7 +61,6 @@ func createTokenCookie(c *fiber.Ctx, token string) {
 	cookie.Secure = true
 
 	// Set SameSite
-	// [TODO]Docker対応時に解除
 	hostName := c.Hostname()
 	isDev := strings.Contains(hostName, "127.0.0.1") || strings.Contains(hostName, "localhost")
 	// 開発環境ではNoneにしとく
