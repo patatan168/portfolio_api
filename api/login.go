@@ -46,9 +46,6 @@ func ConnUser(app *fiber.App, uri string) {
 	hasLogin(app, database)
 	userLogin(app, database)
 	addUser(app, database)
-	makeTestUser(app, database)
-	loginTestUser(app, database)
-	loginTestAuth(app, database)
 }
 
 func createTokenCookie(c *fiber.Ctx, token string) {
@@ -160,99 +157,6 @@ func addUser(app *fiber.App, database string) {
 		if err != nil {
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
-		return c.SendStatus(fiber.StatusOK)
-	})
-}
-
-func makeTestUser(app *fiber.App, database string) {
-	app.Get(getDbRoute(userTable), func(c *fiber.Ctx) error {
-		// PgSQLへデータを追加
-		ctx, conn := connection(database)
-		id := "test"
-		password := "test"
-		userType := "test"
-		name := "test"
-		// ハッシュ化
-		shaId := auth.CreateHexSha3(id)
-		shaPassword := auth.CreateHexSha3(password)
-
-		privateKey, keyErr := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		if keyErr != nil {
-			fmt.Fprintf(os.Stderr, "Key %v\n", keyErr)
-			return c.SendStatus(fiber.StatusInternalServerError)
-		}
-		// UIDの生成
-		uuid, _ := uuid.NewRandom()
-		_, err := conn.Exec(ctx, `
-		insert into user_list (user_name, id, password, type, uuid, private_key) values
-			('`+name+`', '`+shaId+`', '`+shaPassword+`', '`+userType+`', '`+uuid.String()+`', `+privateKey.D.String()+`);
-		`)
-		defer conn.Close(ctx)
-		if err == nil {
-			return c.Status(fiber.StatusOK).SendString(privateKey.D.String())
-		} else {
-			fmt.Fprintf(os.Stderr, "Query %v\n", err)
-			return c.SendStatus(fiber.StatusInternalServerError)
-		}
-	})
-}
-
-func loginTestUser(app *fiber.App, database string) {
-	app.Get("/user/test", func(c *fiber.Ctx) error {
-		fmt.Fprintf(os.Stderr, "Login (%v)\n", userTable)
-		// JSON Parse
-		var user User
-		user.Id = "test"
-		user.Password = "test"
-
-		// PgSQL Connection
-		ctx, conn := connection(database)
-		// Has Exists User?
-		if hasExists, errLogin := auth.HasUserExists(ctx, conn, auth.WithUserId(user.Id), auth.WithPassword(user.Password)); !hasExists || errLogin != nil {
-			conn.Close(ctx)
-			return c.SendStatus(fiber.StatusUnauthorized)
-		}
-		errUuid := conn.QueryRow(ctx, "select uuid from "+userTable+" where id = '"+auth.CreateHexSha3(user.Id)+"' and password = '"+auth.CreateHexSha3(user.Password)+"'").Scan(&user.Uuid)
-		if errUuid != nil {
-			conn.Close(ctx)
-			return c.SendStatus(fiber.StatusUnauthorized)
-		}
-		// Create Private Key
-		conn.QueryRow(ctx, "select private_key from "+userTable+" where uuid = '"+user.Uuid+"'").Scan(&user.Privatekey)
-		privateKey := auth.CreatePrivateKey(user.Privatekey)
-		// Create the Claims
-		claims := auth.CreateClaims(c, user.Uuid, authTime)
-		// Create token
-		token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-		// Generate encoded token and send it as response.
-		t, errToken := token.SignedString(privateKey)
-		if errToken != nil {
-			fmt.Fprintf(os.Stderr, "ErrorToken %v\n", errToken)
-			conn.Close(ctx)
-			return c.SendStatus(fiber.StatusInternalServerError)
-		}
-
-		// Create cookie
-		cookie := new(fiber.Cookie)
-		cookie.Name = "token"
-		cookie.Value = t
-		cookie.Expires = time.Now().Add(time.Duration(authTime))
-		cookie.Path = "/"
-		cookie.HTTPOnly = true
-		cookie.SameSite = "Lax"
-
-		// Set cookie
-		c.Cookie(cookie)
-
-		defer conn.Close(ctx)
-		return c.SendStatus(fiber.StatusOK)
-	})
-}
-func loginTestAuth(app *fiber.App, database string) {
-	app.Get("/user/test2", func(c *fiber.Ctx) error {
-		tst, tst2, test := auth.VerifyToken(c, database)
-		fmt.Fprintf(os.Stderr, "%v\n%v\n%v\n", tst, tst2, test)
-
 		return c.SendStatus(fiber.StatusOK)
 	})
 }
