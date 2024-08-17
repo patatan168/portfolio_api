@@ -134,6 +134,11 @@ func userLogin(app *fiber.App, database string) {
 
 func addUser(app *fiber.App, database string) {
 	app.Post(postDbRoute(userTable)+"/add", func(c *fiber.Ctx) error {
+		// Verify Token
+		valid, authType, _ := auth.VerifyToken(c, database)
+		if !valid || authType != auth.TypeMap[auth.Admin] {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
 		// JSON Parse
 		var user User
 		if err := json.Unmarshal(c.Body(), &user); err != nil {
