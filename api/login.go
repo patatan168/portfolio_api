@@ -133,7 +133,7 @@ func userLogin(app *fiber.App, database string) {
 }
 
 func addUser(app *fiber.App, database string) {
-	app.Get(getDbRoute(userTable)+"/add", func(c *fiber.Ctx) error {
+	app.Post(postDbRoute(userTable)+"/add", func(c *fiber.Ctx) error {
 		// JSON Parse
 		var user User
 		if err := json.Unmarshal(c.Body(), &user); err != nil {
