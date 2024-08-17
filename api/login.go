@@ -150,7 +150,7 @@ func addUser(app *fiber.App, database string) {
 		shaId := auth.CreateHexSha3(user.Id)
 		shaPassword := auth.CreateHexSha3(user.Password)
 		_, err := conn.Exec(ctx, `
-		insert into user_list (user_name, id, password, type, uuid, private_key) values
+		insert into `+userTable+` (user_name, id, password, type, uuid, private_key) values
 			('`+user.Username+`', '`+shaId+`', '`+shaPassword+`', '`+user.Type+`', '`+uuid.String()+`', `+privateKey.D.String()+`);
 		`)
 		defer conn.Close(ctx)
