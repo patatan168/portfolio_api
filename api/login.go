@@ -29,6 +29,13 @@ type User struct {
 	Privatekey string `json:"private_key" xml:"private_key" form:"private_key"`
 }
 
+/* User取得用の構造体 */
+type UserGet struct {
+	Username string `json:"user_name" xml:"user_name" form:"user_name"`
+	Uuid     string `json:"uuid" xml:"uuid" form:"uuid"`
+	Type     string `json:"type" xml:"type" form:"type"`
+}
+
 type HasLogin struct {
 	Valid bool `json:"hasLogin" xml:"hasLogin" form:"hasLogin"`
 }
@@ -46,6 +53,7 @@ func ConnUser(app *fiber.App, uri string) {
 	hasLogin(app, database)
 	userLogin(app, database)
 	addUser(app, database)
+	userGet(app, database)
 }
 
 func createTokenCookie(c *fiber.Ctx, token string) {
@@ -162,6 +170,40 @@ func addUser(app *fiber.App, database string) {
 		if err != nil {
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+}
+
+func userGet(app *fiber.App, database string) {
+	app.Get(getDbRoute(userTable), func(c *fiber.Ctx) error {
+		// Verify Token
+		valid, authType, _ := auth.VerifyToken(c, database)
+		if !valid || authType != auth.TypeMap[auth.Admin] {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
+		// データベースから取得
+		ctx, conn := connection(database)
+		results, queryErr := conn.Query(ctx, "select user_name, uuid, type from "+userTable+" order by type")
+		defer conn.Close(ctx)
+		fmt.Fprintf(os.Stderr, "Get (%v)\n", userTable)
+		if queryErr != nil {
+			fmt.Fprintf(os.Stderr, "Query %v\n", queryErr)
+			return c.SendStatus(500)
+		}
+		// JSONデータの配列を作成
+		todos := make([]UserGet, 0)
+		tmp := new(UserGet)
+		for results.Next() {
+			// 一時変数にオブジェクトを格納
+			if err := results.Scan(&tmp.Username, &tmp.Uuid, &tmp.Type); err != nil {
+				fmt.Fprintf(os.Stderr, "Rows Next: %v\n", err)
+				return c.SendStatus(fiber.StatusInternalServerError)
+			}
+			// オブジェクトの配列を追加
+			todos = append(todos, *tmp)
+		}
+		// JSONデータを出力
+		c.JSON(todos)
 		return c.SendStatus(fiber.StatusOK)
 	})
 }
