@@ -223,8 +223,18 @@ func userDelete(app *fiber.App, database string) {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
-		// PgSQLのデータを削除
 		ctx, conn := connection(database)
+		// 削除する権限タイプを確認
+		conn.QueryRow(ctx, "select type from "+userTable+" where uuid = '"+user.Uuid+"'").Scan(&user.Type)
+		// 管理者データーが1つしかない場合は削除処理をしない
+		if user.Type == auth.TypeMap[auth.Admin] {
+			var countUser uint16
+			conn.QueryRow(ctx, "select count(type='"+auth.TypeMap[auth.Admin]+"' or null) from "+userTable).Scan(&countUser)
+			if countUser < 2 {
+				return c.SendStatus(fiber.StatusBadRequest)
+			}
+		}
+		// PgSQLのデータを削除
 		_, err := conn.Query(ctx, deleteDbReq(userTable, "uuid", user.Uuid))
 		defer conn.Close(ctx)
 		if err == nil {
