@@ -212,6 +212,11 @@ func userGet(app *fiber.App, database string) {
 func userDelete(app *fiber.App, database string) {
 	app.Delete(deleteDbRoute(userTable), func(c *fiber.Ctx) error {
 		fmt.Fprintf(os.Stderr, "Delete (%v)\n", userTable)
+		// Verify Token
+		valid, authType, _ := auth.VerifyToken(c, database)
+		if !valid || authType != auth.TypeMap[auth.Admin] {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
 		// 送信されたJSONをパース
 		var user User
 		if err := json.Unmarshal(c.Body(), &user); err != nil {
