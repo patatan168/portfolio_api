@@ -163,7 +163,7 @@ func todoDelete(app *fiber.App, database string) {
 		}
 		// PgSQLのデータを削除
 		ctx, conn := connection(database)
-		_, err := conn.Query(ctx, deleteDbReq(todoTable, todo.Id))
+		_, err := conn.Query(ctx, deleteDbReq(todoTable, "id", todo.Id))
 		defer conn.Close(ctx)
 		if err == nil {
 			return c.Status(fiber.StatusOK).SendString(todo.Todo)

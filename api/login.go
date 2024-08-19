@@ -54,6 +54,7 @@ func ConnUser(app *fiber.App, uri string) {
 	userLogin(app, database)
 	addUser(app, database)
 	userGet(app, database)
+	userDelete(app, database)
 }
 
 func createTokenCookie(c *fiber.Ctx, token string) {
@@ -205,5 +206,27 @@ func userGet(app *fiber.App, database string) {
 		// JSONデータを出力
 		c.JSON(todos)
 		return c.SendStatus(fiber.StatusOK)
+	})
+}
+
+func userDelete(app *fiber.App, database string) {
+	app.Delete(deleteDbRoute(userTable), func(c *fiber.Ctx) error {
+		fmt.Fprintf(os.Stderr, "Delete (%v)\n", userTable)
+		// 送信されたJSONをパース
+		var user User
+		if err := json.Unmarshal(c.Body(), &user); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
+		// PgSQLのデータを削除
+		ctx, conn := connection(database)
+		_, err := conn.Query(ctx, deleteDbReq(userTable, "uuid", user.Uuid))
+		defer conn.Close(ctx)
+		if err == nil {
+			return c.Status(fiber.StatusOK).SendString(user.Uuid)
+		} else {
+			fmt.Fprintf(os.Stderr, "Query %v\n", err)
+			return c.SendStatus(fiber.StatusInternalServerError)
+		}
 	})
 }
