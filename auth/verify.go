@@ -24,6 +24,18 @@ type user struct {
 	Privatekey string `json:"private_key" xml:"private_key" form:"private_key"`
 }
 
+type typeEnum int
+
+const (
+	Admin typeEnum = iota
+	Bloger
+)
+
+var TypeMap = map[typeEnum]string{
+	Admin:  "admin",
+	Bloger: "blogger",
+}
+
 func VerifyToken(c *fiber.Ctx, database string) (bool, string, error) {
 	cookie, errCookie := fetchToken(c)
 	if errCookie != nil {

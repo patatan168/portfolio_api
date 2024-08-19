@@ -19,8 +19,8 @@ func connection(database string) (context.Context, *pgx.Conn) {
 }
 
 /* データベース「DELETE」のリクエスト */
-func deleteDbReq(table string, id string) string {
-	return "delete from " + table + " where id = '" + id + "'"
+func deleteDbReq(table string, key string, id string) string {
+	return "delete from " + table + " where " + key + " = '" + id + "'"
 }
 
 /* データベース「GET」のルーティングアドレス */

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"server/auth"
 	"strconv"
 	"time"
 
@@ -155,6 +156,11 @@ func todoPut(app *fiber.App, database string) {
 func todoDelete(app *fiber.App, database string) {
 	app.Delete(deleteDbRoute(todoTable), func(c *fiber.Ctx) error {
 		fmt.Fprintf(os.Stderr, "Delete (%v)\n", todoTable)
+		// Verify Token
+		valid, authType, _ := auth.VerifyToken(c, database)
+		if !valid || authType != auth.TypeMap[auth.Admin] {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
 		// 送信されたJSONをパース
 		var todo Todo
 		if err := json.Unmarshal(c.Body(), &todo); err != nil {
@@ -163,7 +169,7 @@ func todoDelete(app *fiber.App, database string) {
 		}
 		// PgSQLのデータを削除
 		ctx, conn := connection(database)
-		_, err := conn.Query(ctx, deleteDbReq(todoTable, todo.Id))
+		_, err := conn.Query(ctx, deleteDbReq(todoTable, "id", todo.Id))
 		defer conn.Close(ctx)
 		if err == nil {
 			return c.Status(fiber.StatusOK).SendString(todo.Todo)
