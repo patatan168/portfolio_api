@@ -53,6 +53,8 @@ func main() {
 	api.ConnTodo(app, uri)
 	// Userコネクション
 	api.ConnUser(app, uri)
+	// Blogコネクション
+	api.ConnBlog(app, uri)
 
 	app.Listen(":4000")
 }
