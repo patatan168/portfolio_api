@@ -284,7 +284,7 @@ func blogPut(app *fiber.App, database string) {
 		// Put
 		_, err := conn.Query(ctx, `
 		update `+blogTable+`
-			set (`+putEntry+`) = (`+blog.Tag+`, `+blog.Sentence+`, `+blog.Sentence+`, `+timeStamp+`)
+			set (`+putEntry+`) = ('`+blog.Tag+`', '`+blog.Title+`', '`+blog.Sentence+`', '`+timeStamp+`')
 			where uuid='`+blog.Uuid+`'
 		`)
 		defer conn.Close(ctx)
