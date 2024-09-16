@@ -30,6 +30,7 @@ type Blog struct {
 const blogTable string = "blog"
 
 const entryList string = "path, tag, title, uuid, post_time"
+const editList string = "uuid, path, title, edit_time, post_time"
 const entry string = "path, tag, title, uuid, sentence, edit_time, post_time"
 const putEntry string = "tag, title, sentence, edit_time"
 
@@ -88,6 +89,7 @@ func ConnBlog(app *fiber.App, uri string) {
 	// クエリー
 	blogGet(app, database)
 	blogGetDiv(app, database)
+	blogEditGet(app, database)
 	blogGetEntry(app, database)
 	blogPost(app, database)
 	blogPut(app, database)
@@ -141,6 +143,43 @@ func blogGetDiv(app *fiber.App, database string) {
 		for results.Next() {
 			// 一時変数にオブジェクトを格納
 			if err := results.Scan(&tmp.Path, &tmp.Tag, &tmp.Title, &tmp.Uuid, &tmp.PostTime); err != nil {
+				fmt.Fprintf(os.Stderr, "Rows Next: %v\n", err)
+				return c.SendStatus(fiber.StatusInternalServerError)
+			}
+			// オブジェクトの配列を追加
+			blogs = append(blogs, *tmp)
+		}
+		// JSONデータを出力
+		c.JSON(blogs)
+		return c.SendStatus(fiber.StatusOK)
+	})
+}
+
+/* 編集用のブログListを出力 */
+func blogEditGet(app *fiber.App, database string) {
+	app.Get(getDbRoute(blogTable)+"-edit", func(c *fiber.Ctx) error {
+		// Verify Token
+		valid, authType, _ := auth.VerifyToken(c, database)
+		// Admin or Blogger
+		auth := authType != auth.TypeMap[auth.Admin] && authType != auth.TypeMap[auth.Bloger]
+		if !valid || auth {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
+		// データベースからBlogを取得していく(日付が新しい順)
+		ctx, conn := connection(database)
+		results, queryErr := conn.Query(ctx, "select "+editList+" from "+blogTable)
+		defer conn.Close(ctx)
+		fmt.Fprintf(os.Stderr, "Get (%v)\n", blogTable)
+		if queryErr != nil {
+			fmt.Fprintf(os.Stderr, "Query %v\n", queryErr)
+			return c.SendStatus(500)
+		}
+		// JSONデータの配列を作成
+		var blogs []Blog
+		tmp := new(Blog)
+		for results.Next() {
+			// 一時変数にオブジェクトを格納
+			if err := results.Scan(&tmp.Uuid, &tmp.Path, &tmp.Title, &tmp.EditTime, &tmp.PostTime); err != nil {
 				fmt.Fprintf(os.Stderr, "Rows Next: %v\n", err)
 				return c.SendStatus(fiber.StatusInternalServerError)
 			}
